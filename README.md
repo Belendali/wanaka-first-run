@@ -16,7 +16,12 @@ A clickable 1:1 of Figma section **0917** (page “Plan Mode+新手流程”,
 10. **Game assets** — four picks + *Generate later* per slot, multi-select. Hover
     pulls out a second row; *Browse more* opens the library in the slot with a
     search; nothing found offers *Generate later*.
-11. **Build** — *Approve and build now*; the Developer picks it up.
+11. **Build** — *Approve and build now*. One Wana at a time, five seconds each:
+    the Developer lays out the level (wireframes and a route), the Artist
+    models it (the scene tiles in), the Musician scores it, the Tester plays it
+    through. Every cat on the bar is solid; the one working moves.
+12. **Version 1.0** — a play button over the finished scene and in the chat.
+13. **Play** — Preview mode: find the five stars, reach the hoop.
 
 The shell, viewport, chat backdrop, landing and login are exports of the
 Figma frames; everything that moves is drawn on top at frame coordinates.

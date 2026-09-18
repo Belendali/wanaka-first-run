@@ -60,14 +60,15 @@ const LINES = {
   build: {
     planner: 'Planner: plan approved — keeping the crew on track',
     developer: 'Developer: Writing your game logic...',
-    artist: 'Artist: up next — modelling the rooms and the toys',
-    audio: 'Musician: up next — a theme loop for the bedroom',
-    tester: 'Tester: last — I play it through before you do',
+    artist: 'Artist: Modelling the bedroom and the toys...',
+    audio: 'Musician: Scoring a theme loop for the bedroom...',
+    tester: 'Tester: Playing it through before you do...',
   },
 };
 function crewbar(active, phase) {
   const bar = $('crewbar');
   bar.hidden = false;
+  bar.classList.toggle('is-build', phase === 'build');
   bar.innerHTML = `<i class="crewbar__min" title="Minimise"></i>
     <div class="crewbar__row">${BAR.map((k) => `
       <span class="cat${k === active ? ' is-on' : ' is-idle'}" data-k="${k}">
@@ -76,9 +77,22 @@ function crewbar(active, phase) {
   const line = $('crewLine');
   bar.querySelectorAll('.cat').forEach((c) => {
     c.onmouseenter = () => { line.textContent = LINES[phase][c.dataset.k]; };
-    c.onmouseleave = () => { line.textContent = LINES[phase][active]; };
+    c.onmouseleave = () => { line.textContent = LINES[phase][bar.dataset.active]; };
   });
+  bar.dataset.active = active;
   bar.querySelector('.crewbar__min').onclick = () => { bar.hidden = true; };
+}
+// hand the work to the next cat: only its picture moves, the line says what it is doing
+function crewTurn(active) {
+  const bar = $('crewbar');
+  bar.dataset.active = active;
+  bar.querySelectorAll('.cat').forEach((c) => {
+    const on = c.dataset.k === active;
+    c.classList.toggle('is-on', on);
+    c.classList.toggle('is-idle', !on);
+    c.querySelector('img').src = `assets/crew-${c.dataset.k}${on ? '.webp' : '-still.png'}`;
+  });
+  $('crewLine').textContent = LINES.build[active];
 }
 
 // ── tour ───────────────────────────────────────────────────────────
@@ -499,6 +513,8 @@ function reset() {
   $('thread').innerHTML = '';
   $('thread').classList.remove('is-full');
   $('crewbar').hidden = true;
+  $('scene').innerHTML = '';
+  setMode('build');
   $('planPill').classList.remove('is-lit');
   $('send').className = 'send';
   resetPicks();
@@ -531,8 +547,71 @@ async function play(from = 1) {
   if (!ok || run !== RUN) return;
   // 9–11 · the plan, then the build
   onApprove = () => build(run);
+  if (from >= 12) {
+    FAST = true;
+    closePlan();
+    userSay('Approve and build now');
+    crewSay('planner', 'Cool, my crew is working for you...');
+    push(E('div', 'steps msg', ['Game logic', 'Models and scene', 'Theme music', 'Playtest']
+      .map((t) => `<div class="step step--done"><i></i>${t}</div>`).join('')));
+    FAST = false;
+    version1(run);
+    if (from >= 13) play1();
+    return;
+  }
   openPlan(from === 10 ? 1 : 0);
   if (from >= 11) build(run);
+}
+
+// ── the build: one cat every 5 seconds, the scene assembles behind the bar ──
+const scene = () => $('scene');
+const ISO = (x, y, w, d, h) => {            // an outlined box on the floor, in viewport pixels
+  const a = [x, y], b = [x + w, y + w * .5], c = [x + w - d, y + w * .5 + d * .5], e = [x - d, y + d * .5];
+  const up = (p) => [p[0], p[1] - h];
+  const P = (p) => p.join(' ');
+  return `<path d="M${P(a)}L${P(b)}L${P(c)}L${P(e)}Z M${P(up(a))}L${P(up(b))}L${P(up(c))}L${P(up(e))}Z
+    M${P(a)}L${P(up(a))}M${P(b)}L${P(up(b))}M${P(c)}L${P(up(c))}M${P(e)}L${P(up(e))}"/>`;
+};
+function devScene() {
+  const boxes = [[250, 610, 170, 120, 150], [520, 560, 120, 90, 250], [760, 640, 200, 150, 110], [1040, 520, 150, 110, 190],
+    [380, 780, 110, 80, 70], [900, 800, 130, 90, 90], [1180, 760, 90, 70, 60]];
+  // SVG has to be parsed as SVG, so it goes in through markup
+  const holder = E('div', '', `<svg class="wire" viewBox="0 0 1472 1024">${boxes.map((b, i) =>
+    ISO(...b).replace('<path', `<path style="animation-delay:${i * .45}s"`)).join('')}
+    <path class="route" d="M300 900 C 420 760, 560 820, 700 720 S 980 640, 1120 470"/></svg>`);
+  const w = holder.firstElementChild;
+  scene().appendChild(w);
+  setTimeout(() => w.classList.add('has-route'), FAST ? 0 : 3200);
+}
+function artScene() {
+  const art = E('div', 'art');
+  const tiles = [];
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 8; c++) {
+    const t = E('i');
+    t.style.backgroundPosition = `${-c * 184}px ${-r * 1024 / 6}px`;
+    art.appendChild(t);
+    tiles.push(t);
+  }
+  scene().appendChild(art);
+  tiles.sort(() => Math.random() - .5).forEach((t, i) => setTimeout(() => t.classList.add('is-in'), FAST ? 0 : 200 + i * 90));
+  const wire = scene().querySelector('.wire');
+  if (wire) setTimeout(() => { wire.style.opacity = 0; }, FAST ? 0 : 3600);
+}
+function audioScene() {
+  scene().appendChild(E('div', 'tag', `<i>♪</i>Theme loop · Giant Bedroom <span class="wave">${'<b></b>'.repeat(7)}</span>`));
+  scene().querySelectorAll('.wave b').forEach((b, i) => { b.style.animationDelay = `${i * .12}s`; });
+  ['♪', '♫', '♪', '♬', '♫'].forEach((n, i) => setTimeout(() => {
+    const el = E('i', 'note', n);
+    el.style.left = `${280 + i * 230}px`;
+    scene().appendChild(el);
+    setTimeout(() => el.remove(), 3100);
+  }, FAST ? 0 : i * 800));
+}
+function testScene() {
+  const box = E('div', 'checks');
+  scene().appendChild(box);
+  ['Jump & land', 'Collect the stars', 'Reach the hoop'].forEach((t, i) =>
+    setTimeout(() => box.appendChild(E('span', 'chk', `<i></i>${t}`)), FAST ? 0 : 500 + i * 1300));
 }
 
 async function build(run) {
@@ -543,11 +622,96 @@ async function build(run) {
   if (run !== RUN) return;
   crewSay('planner', 'Cool, my crew is working for you...');
   $('send').classList.add('is-stop');
+  const list = push(E('div', 'steps msg', ['Game logic', 'Models and scene', 'Theme music', 'Playtest']
+    .map((t, i) => `<div class="step step--${i === 0 ? 'busy' : 'todo'}"><i></i>${t}</div>`).join('')));
+  const rows = [...list.querySelectorAll('.step')];
   crewbar('developer', 'build');
+  const TURNS = [['developer', devScene], ['artist', artScene], ['audio', audioScene], ['tester', testScene]];
+  for (let i = 0; i < TURNS.length; i++) {
+    if (run !== RUN) return;
+    crewTurn(TURNS[i][0]);
+    rows[i].className = 'step step--busy';
+    TURNS[i][1]();
+    await wait(5000);
+    rows[i].className = 'step step--done';
+  }
+  if (run !== RUN) return;
+  version1(run);
 }
 
+function version1(run) {
+  paintDirector(12);
+  $('crewbar').hidden = true;
+  $('send').classList.remove('is-stop');
+  const sc = scene();
+  sc.querySelectorAll('.wire,.tag,.checks,.note').forEach((n) => n.remove());
+  if (!sc.querySelector('.art')) { artScene(); sc.querySelectorAll('.art i').forEach((t) => t.classList.add('is-in')); }
+  sc.appendChild(E('span', 'vtag', 'Version 1.0'));
+  const big = E('button', 'bigplay', '<span>Play version 1.0</span>');
+  sc.appendChild(big);
+  big.onclick = () => play1();
+  crewSay('tester', 'Version 1.0 is up and it holds together — five stars to find, one hoop to reach. Give it a go.');
+  const card = push(E('div', 'v1card msg', `<img src="assets/boy.jpg" alt="">
+    <span><em>Version 1.0</em><b>Tiny Explorer: The Giant Bedroom</b><button>▶ Play</button></span>`));
+  card.querySelector('button').onclick = () => play1();
+}
+
+// ── Preview: version 1.0, playable ─────────────────────────────────
+const STARS = [[18, 70], [34, 44], [52, 62], [69, 38], [84, 58]];   // % of the viewport
+function play1() {
+  paintDirector(13);
+  setMode('play');
+  const sc = scene();
+  sc.querySelectorAll('.game').forEach((g) => g.remove());
+  const g = E('div', 'game');
+  sc.appendChild(g);
+  let got = 0;
+  const t0 = performance.now();
+  g.innerHTML = `<div class="hud"><span class="st">★ <b id="stN">0</b>/5</span><span id="clock">0:00</span></div>
+    <div class="hint2">Find the five stars — click them to collect</div>
+    ${STARS.map(([x, y], i) => `<button class="star" data-i="${i}" style="left:${x}%;top:${y}%;animation-delay:${i * .2}s"></button>`).join('')}`;
+  const clock = setInterval(() => {
+    if (!g.isConnected) return clearInterval(clock);
+    const sec = Math.floor((performance.now() - t0) / 1000);
+    $('clock').textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  }, 250);
+  g.querySelectorAll('.star').forEach((b) => {
+    b.onclick = () => {
+      b.classList.add('is-got');
+      const r = b.getBoundingClientRect(), gr = g.getBoundingClientRect(), k = gr.width / 1472;
+      const plus = E('i', 'plus', '+1');
+      plus.style.left = `${(r.left - gr.left) / k + 14}px`; plus.style.top = `${(r.top - gr.top) / k}px`;
+      g.appendChild(plus);
+      setTimeout(() => plus.remove(), 700);
+      got++;
+      $('stN').textContent = got;
+      if (got === 5) {
+        clearInterval(clock);
+        setTimeout(() => {
+          g.appendChild(E('div', 'win', `<div class="win__c"><img src="assets/crew-tester.webp" alt="">
+            <b>You reached the hoop!</b><p>★ 5/5 in ${$('clock').textContent} — that’s version 1.0.</p>
+            <span class="acts"><button class="btn btn--sec" id="again">Play again</button><button class="btn btn--go" id="back">Back to Build</button></span></div>`));
+          $('again').onclick = () => play1();
+          $('back').onclick = () => { g.remove(); setMode('build'); paintDirector(12); };
+        }, 600);
+      }
+    };
+  });
+}
+function setMode(m) {
+  document.querySelectorAll('.modes__b').forEach((b) => b.classList.toggle('is-on', b.dataset.m === m));
+  if (m === 'build') scene().querySelectorAll('.game').forEach((g) => g.remove());
+}
+document.querySelectorAll('.modes__b').forEach((b) => {
+  b.onclick = () => {
+    const ready = !!scene().querySelector('.bigplay');
+    if (b.dataset.m === 'play' && ready) play1();
+    if (b.dataset.m === 'build') { setMode('build'); if (ready) paintDirector(12); }
+  };
+});
+
 // ── director (demo only) ───────────────────────────────────────────
-const BEATS = ['Landing', 'Login', 'Wana', 'Chat', 'Scene', 'Crew + Plan', 'Planner works', 'Plan ready', 'Overview', 'Game assets', 'Build'];
+const BEATS = ['Landing', 'Login', 'Wana', 'Chat', 'Scene', 'Crew + Plan', 'Planner works', 'Plan ready', 'Overview', 'Game assets', 'Build', 'Version 1.0', 'Play'];
 function paintDirector(n) {
   const d = $('director');
   if (Q.has('clean')) { d.classList.add('is-hidden'); return; }

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Bitcount+Grid+Single:wght@400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=11">
+<link rel="stylesheet" href="app.css?v=12">
 </head>
 <body>
 <div class="fit">
@@ -16,7 +16,12 @@
     <!-- the studio: shell, viewport and chat are the Figma frames themselves -->
     <div class="studio" id="studio">
       <img class="shell" src="assets/shell.png" alt="">
-      <section class="view"><img src="assets/view-bg.jpg" alt=""></section>
+      <section class="view" id="view"><img src="assets/view-bg.jpg" alt=""><div class="scene" id="scene"></div></section>
+      <!-- Build / Preview, drawn over the shell so it can switch -->
+      <span class="modes" id="modes">
+        <button class="modes__b is-on" data-m="build"><svg viewBox="0 0 16 16"><path d="M3 3.5h3.5V7H3zM9.5 3.5H13V7H9.5zM3 9.5h3.5V13H3zM9.5 9.5H13V13H9.5z"/></svg>Build</button>
+        <button class="modes__b" data-m="play"><svg viewBox="0 0 16 16"><rect x="2" y="4.5" width="12" height="7.5" rx="3"/><path d="M5.2 7.2v2.2M4.1 8.3h2.2"/><circle cx="10.5" cy="7.6" r=".5"/><circle cx="11.6" cy="9" r=".5"/></svg>Preview</button>
+      </span>
       <aside class="chat" id="chat">
         <img class="chat__bg" src="assets/chat-bg.png" alt="">
         <div class="thread" id="thread"></div>
@@ -50,6 +55,6 @@
 
 <div class="director" id="director"></div>
 
-<script src="app.js?v=11"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
