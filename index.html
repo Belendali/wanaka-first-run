@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Bitcount+Grid+Single:wght@400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=12">
+<link rel="stylesheet" href="app.css?v=15">
 </head>
 <body>
 <div class="fit">
@@ -24,9 +24,14 @@
       </span>
       <aside class="chat" id="chat">
         <img class="chat__bg" src="assets/chat-bg.png" alt="">
+        <header class="chath">
+          <button class="chath__name" id="chatName"></button>
+          <button class="chath__plus" id="chatPlus" title="New chat"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></button>
+        </header>
+        <div class="chatpop" id="chatPop" hidden></div>
         <div class="thread" id="thread"></div>
         <div class="composer" id="composer">
-          <div class="composer__in" id="input" data-ph="Ask, plan, build anything..."></div>
+          <div class="composer__in" id="input" contenteditable="true" spellcheck="false" data-ph="Ask, plan, build anything..."></div>
           <div class="composer__row">
             <button class="cbtn" title="Add"><svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></svg></button>
             <button class="cbtn" title="Cut"><svg viewBox="0 0 20 20"><circle cx="6" cy="14" r="2.5"/><circle cx="14" cy="14" r="2.5"/><path d="M7.8 12.2 15 4M12.2 12.2 5 4"/></svg></button>
@@ -55,6 +60,7 @@
 
 <div class="director" id="director"></div>
 
-<script src="app.js?v=13"></script>
+<script src="scene.js?v=4"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

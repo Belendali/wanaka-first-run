@@ -16,12 +16,20 @@ A clickable 1:1 of Figma section **0917** (page “Plan Mode+新手流程”,
 10. **Game assets** — four picks + *Generate later* per slot, multi-select. Hover
     pulls out a second row; *Browse more* opens the library in the slot with a
     search; nothing found offers *Generate later*.
-11. **Build** — *Approve and build now*. One Wana at a time, five seconds each:
-    the Developer lays out the level (wireframes and a route), the Artist
-    models it (the scene tiles in), the Musician scores it, the Tester plays it
-    through. Every cat on the bar is solid; the one working moves.
+11. **Build** — *Approve and build now*. One Wana at a time, five seconds each,
+    and the game (drawn in code, `scene.js`) assembles: the Developer lays out
+    collision boxes and a route, the Artist turns each box into its model, the
+    Musician scores it, the Tester runs the kid through the course.
 12. **Version 1.0** — a play button over the finished scene and in the chat.
-13. **Play** — Preview mode: find the five stars, reach the hoop.
+13. **Play** — Preview mode: arrow keys / WASD or click the floor; five stars,
+    then the hoop.
+
+**Chats with different Wanas.** The *+* next to the chat name opens *New chat
+with…*: Game (Wana, the default — the only chat that changes the game), Assets
+(Artist Wana), Design (Planner Wana), Business (Publisher Wana). Chats run side
+by side: the crew keeps building while the Artist makes a model in another chat.
+The chat switcher shows who is working and who has news; assets go back with
+*Add to scene*, design ideas with *Send to the Game chat*.
 
 The shell, viewport, chat backdrop, landing and login are exports of the
 Figma frames; everything that moves is drawn on top at frame coordinates.

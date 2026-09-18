@@ -38,6 +38,7 @@ function push(node) {
   const t = $('thread');
   t.appendChild(node);
   t.classList.toggle('is-full', t.scrollHeight > t.clientHeight);
+  if (window.__chatNews) window.__chatNews('game');
   return node;
 }
 const ACTS = `<span class="acts">
@@ -514,6 +515,7 @@ function reset() {
   $('thread').classList.remove('is-full');
   $('crewbar').hidden = true;
   $('scene').innerHTML = '';
+  if (typeof resetChats === 'function') resetChats();
   setMode('build');
   $('planPill').classList.remove('is-lit');
   $('send').className = 'send';
@@ -563,51 +565,14 @@ async function play(from = 1) {
   if (from >= 11) build(run);
 }
 
-// ── the build: one cat every 5 seconds, the scene assembles behind the bar ──
+// ── the build: one cat every 5 seconds, the game assembles behind the bar ──
 const scene = () => $('scene');
-const ISO = (x, y, w, d, h) => {            // an outlined box on the floor, in viewport pixels
-  const a = [x, y], b = [x + w, y + w * .5], c = [x + w - d, y + w * .5 + d * .5], e = [x - d, y + d * .5];
-  const up = (p) => [p[0], p[1] - h];
-  const P = (p) => p.join(' ');
-  return `<path d="M${P(a)}L${P(b)}L${P(c)}L${P(e)}Z M${P(up(a))}L${P(up(b))}L${P(up(c))}L${P(up(e))}Z
-    M${P(a)}L${P(up(a))}M${P(b)}L${P(up(b))}M${P(c)}L${P(up(c))}M${P(e)}L${P(up(e))}"/>`;
-};
-function devScene() {
-  const boxes = [[250, 610, 170, 120, 150], [520, 560, 120, 90, 250], [760, 640, 200, 150, 110], [1040, 520, 150, 110, 190],
-    [380, 780, 110, 80, 70], [900, 800, 130, 90, 90], [1180, 760, 90, 70, 60]];
-  // SVG has to be parsed as SVG, so it goes in through markup
-  const holder = E('div', '', `<svg class="wire" viewBox="0 0 1472 1024">${boxes.map((b, i) =>
-    ISO(...b).replace('<path', `<path style="animation-delay:${i * .45}s"`)).join('')}
-    <path class="route" d="M300 900 C 420 760, 560 820, 700 720 S 980 640, 1120 470"/></svg>`);
-  const w = holder.firstElementChild;
-  scene().appendChild(w);
-  setTimeout(() => w.classList.add('has-route'), FAST ? 0 : 3200);
-}
-function artScene() {
-  const art = E('div', 'art');
-  const tiles = [];
-  for (let r = 0; r < 6; r++) for (let c = 0; c < 8; c++) {
-    const t = E('i');
-    t.style.backgroundPosition = `${-c * 184}px ${-r * 1024 / 6}px`;
-    art.appendChild(t);
-    tiles.push(t);
-  }
-  scene().appendChild(art);
-  tiles.sort(() => Math.random() - .5).forEach((t, i) => setTimeout(() => t.classList.add('is-in'), FAST ? 0 : 200 + i * 90));
-  const wire = scene().querySelector('.wire');
-  if (wire) setTimeout(() => { wire.style.opacity = 0; }, FAST ? 0 : 3600);
-}
-function audioScene() {
-  scene().appendChild(E('div', 'tag', `<i>♪</i>Theme loop · Giant Bedroom <span class="wave">${'<b></b>'.repeat(7)}</span>`));
-  scene().querySelectorAll('.wave b').forEach((b, i) => { b.style.animationDelay = `${i * .12}s`; });
-  ['♪', '♫', '♪', '♬', '♫'].forEach((n, i) => setTimeout(() => {
-    const el = E('i', 'note', n);
-    el.style.left = `${280 + i * 230}px`;
-    scene().appendChild(el);
-    setTimeout(() => el.remove(), 3100);
-  }, FAST ? 0 : i * 800));
-}
+const room = () => { let r = scene().querySelector('.roomhost'); if (!r) { r = E('div', 'roomhost'); scene().prepend(r); Scene.mount(r); } return r; };
+const devScene = () => { room(); Scene.wire(); };
+const artScene = (fast) => { room(); Scene.art(fast); };
+const audioScene = () => Scene.music(scene());
 function testScene() {
+  Scene.test(4200);
   const box = E('div', 'checks');
   scene().appendChild(box);
   ['Jump & land', 'Collect the stars', 'Reach the hoop'].forEach((t, i) =>
@@ -644,8 +609,8 @@ function version1(run) {
   $('crewbar').hidden = true;
   $('send').classList.remove('is-stop');
   const sc = scene();
-  sc.querySelectorAll('.wire,.tag,.checks,.note').forEach((n) => n.remove());
-  if (!sc.querySelector('.art')) { artScene(); sc.querySelectorAll('.art i').forEach((t) => t.classList.add('is-in')); }
+  sc.querySelectorAll('.tag,.checks,.note').forEach((n) => n.remove());
+  if (!sc.querySelector('.thing')) { room(); Scene.art(true); }
   sc.appendChild(E('span', 'vtag', 'Version 1.0'));
   const big = E('button', 'bigplay', '<span>Play version 1.0</span>');
   sc.appendChild(big);
@@ -657,50 +622,47 @@ function version1(run) {
 }
 
 // ── Preview: version 1.0, playable ─────────────────────────────────
-const STARS = [[18, 70], [34, 44], [52, 62], [69, 38], [84, 58]];   // % of the viewport
 function play1() {
   paintDirector(13);
   setMode('play');
   const sc = scene();
-  sc.querySelectorAll('.game').forEach((g) => g.remove());
-  const g = E('div', 'game');
-  sc.appendChild(g);
-  let got = 0;
+  sc.querySelectorAll('.bigplay,.vtag,.hud,.hint2,.win').forEach((n) => n.remove());
+  if (!sc.querySelector('.thing')) { room(); Scene.art(true); }
+  sc.classList.add('is-playing');
   const t0 = performance.now();
-  g.innerHTML = `<div class="hud"><span class="st">★ <b id="stN">0</b>/5</span><span id="clock">0:00</span></div>
-    <div class="hint2">Find the five stars — click them to collect</div>
-    ${STARS.map(([x, y], i) => `<button class="star" data-i="${i}" style="left:${x}%;top:${y}%;animation-delay:${i * .2}s"></button>`).join('')}`;
+  const hud = E('div', 'hud', '<span class="st">★ <b id="stN">0</b>/5</span><span id="clock">0:00</span>');
+  const hint = E('div', 'hint2', 'Arrow keys / WASD, or click the floor — find five stars, then reach the hoop');
+  sc.append(hud, hint);
   const clock = setInterval(() => {
-    if (!g.isConnected) return clearInterval(clock);
+    if (!hud.isConnected) return clearInterval(clock);
     const sec = Math.floor((performance.now() - t0) / 1000);
     $('clock').textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
   }, 250);
-  g.querySelectorAll('.star').forEach((b) => {
-    b.onclick = () => {
-      b.classList.add('is-got');
-      const r = b.getBoundingClientRect(), gr = g.getBoundingClientRect(), k = gr.width / 1472;
-      const plus = E('i', 'plus', '+1');
-      plus.style.left = `${(r.left - gr.left) / k + 14}px`; plus.style.top = `${(r.top - gr.top) / k}px`;
-      g.appendChild(plus);
-      setTimeout(() => plus.remove(), 700);
-      got++;
-      $('stN').textContent = got;
-      if (got === 5) {
-        clearInterval(clock);
-        setTimeout(() => {
-          g.appendChild(E('div', 'win', `<div class="win__c"><img src="assets/crew-tester.webp" alt="">
-            <b>You reached the hoop!</b><p>★ 5/5 in ${$('clock').textContent} — that’s version 1.0.</p>
-            <span class="acts"><button class="btn btn--sec" id="again">Play again</button><button class="btn btn--go" id="back">Back to Build</button></span></div>`));
-          $('again').onclick = () => play1();
-          $('back').onclick = () => { g.remove(); setMode('build'); paintDirector(12); };
-        }, 600);
-      }
-    };
+  Scene.play({
+    onStar: (n) => { $('stN').textContent = n; if (n === 5) hint.textContent = 'All five! Now reach the hoop'; },
+    onWin: () => {
+      clearInterval(clock);
+      const win = E('div', 'win', `<div class="win__c"><img src="assets/crew-tester.webp" alt="">
+        <b>You reached the hoop!</b><p>★ 5/5 in ${$('clock').textContent} — that’s version 1.0.</p>
+        <span class="acts"><button class="btn btn--sec" id="again">Play again</button><button class="btn btn--go" id="back">Back to Build</button></span></div>`);
+      sc.appendChild(win);
+      $('again').onclick = () => play1();
+      $('back').onclick = () => { setMode('build'); paintDirector(12); };
+    },
   });
 }
 function setMode(m) {
   document.querySelectorAll('.modes__b').forEach((b) => b.classList.toggle('is-on', b.dataset.m === m));
-  if (m === 'build') scene().querySelectorAll('.game').forEach((g) => g.remove());
+  if (m === 'build') {
+    if (window.Scene) Scene.stop();
+    scene().classList.remove('is-playing');
+    scene().querySelectorAll('.hud,.hint2,.win').forEach((n) => n.remove());
+    if (scene().querySelector('.thing') && !scene().querySelector('.bigplay')) {
+      const big = E('button', 'bigplay', '<span>Play version 1.0</span>');
+      scene().append(E('span', 'vtag', 'Version 1.0'), big);
+      big.onclick = () => play1();
+    }
+  }
 }
 document.querySelectorAll('.modes__b').forEach((b) => {
   b.onclick = () => {
@@ -709,6 +671,188 @@ document.querySelectorAll('.modes__b').forEach((b) => {
     if (b.dataset.m === 'build') { setMode('build'); if (ready) paintDirector(12); }
   };
 });
+
+// ── chats with different Wanas, running side by side ──────────────
+// The Game chat is the one that changes the game. The others make or think
+// things through, and hand what they make back: an asset goes into the
+// scene, a design idea goes to the Game chat.
+const AGENTS = {
+  game: { who: 'Wana', img: 'assets/wana-still.png', tag: 'Game', line: 'Build and change your game',
+    ph: 'Ask, plan, build anything...' },
+  assets: { who: 'Artist Wana', img: 'assets/crew-artist-still.png', tag: 'Assets', line: 'Characters, props, music — made to order',
+    ph: 'Describe an asset — a toy robot, a wooden crate…',
+    hello: 'I make the things in your game — characters, props, music. Tell me what you need; anything I make can go straight into the scene.',
+    chips: ['A wind-up toy robot', 'A giant rubber duck', 'A cozy bedroom theme'] },
+  design: { who: 'Planner Wana', img: 'assets/crew-planner-still.png', tag: 'Design', line: 'Talk through ideas, levels and rules',
+    ph: 'Talk an idea through…',
+    hello: 'Let’s think it through before anyone builds it — ideas, levels, rules. When something’s good, I’ll hand it to the Game chat.',
+    chips: ['Add a second room', 'What makes it replayable?', 'A boss at the end?'] },
+  biz: { who: 'Publisher Wana', img: 'assets/crew-marketing-still.png', tag: 'Business', line: 'Audience, pricing and launch',
+    ph: 'Ask about audience, price, launch…',
+    hello: 'I think about who plays it and how they find it. Ask me about your audience, pricing, or a launch plan.',
+    chips: ['Who is this game for?', 'Free or paid?', 'A plan for launch week'] },
+};
+const TCLS = { game: 'game', assets: 'assets', design: 'design', biz: 'biz' };
+let chats = [];
+let current = 'game';
+function resetChats() {
+  document.querySelectorAll('.thread.side').forEach((t) => t.remove());
+  $('thread').classList.remove('is-off');
+  chats = [{ id: 'game', type: 'game', title: 'Toy house explorer', el: $('thread'), unread: false, busy: false }];
+  current = 'game';
+  $('chatPop').hidden = true;
+  paintHead();
+}
+const chatOf = (id) => chats.find((c) => c.id === id);
+const gameBusy = () => $('send').classList.contains('is-stop') || !$('crewbar').hidden;
+function statusOf(c) {
+  if (c.type === 'game') return gameBusy() ? ['busy', 'Your crew is building…'] : [c.unread ? 'dot' : '', 'The game — plan, build, change'];
+  if (c.busy) return ['busy', `${AGENTS[c.type].who} is working…`];
+  return [c.unread ? 'dot' : '', c.last || AGENTS[c.type].line];
+}
+function paintHead() {
+  const c = chatOf(current);
+  const a = AGENTS[c.type];
+  const news = chats.some((o) => o.id !== current && (o.unread || (o.type === 'game' ? false : o.busy)));
+  $('chatName').innerHTML = `<img src="${a.img}" alt=""><span class="n">${c.title}</span>
+    <span class="ttag ttag--${TCLS[c.type]}">${a.tag}</span>${news ? '<i class="news"></i>' : ''}
+    <svg viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg>`;
+  $('input').dataset.ph = a.ph;
+  if (!$('chatPop').hidden && $('chatPop').dataset.mode === 'list') listPop();
+}
+window.__chatNews = (id) => {
+  const c = chatOf(id);
+  if (!c) return;
+  if (id !== current) c.unread = true;
+  paintHead();
+};
+function listPop() {
+  const pop = $('chatPop');
+  pop.dataset.mode = 'list';
+  pop.innerHTML = `<div class="chatpop__k">OPEN CHATS · ${chats.length}</div>
+    ${chats.map((c) => { const [st, line] = statusOf(c); const a = AGENTS[c.type]; return `
+      <button class="crow${c.id === current ? ' is-on' : ''}" data-id="${c.id}"><img src="${a.img}" alt="">
+        <span><b>${c.title}<span class="ttag ttag--${TCLS[c.type]}">${a.tag}</span></b><em>${line}</em></span>
+        ${st === 'busy' ? '<i class="busy"></i>' : st === 'dot' ? '<i class="dot"></i>' : ''}
+        ${c.id === current ? '<svg class="ok" viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7"/></svg>' : ''}</button>`; }).join('')}
+    <div class="chatpop__sep"></div>
+    <button class="chatpop__new"><svg viewBox="0 0 16 16" style="width:14px;height:14px"><path d="M8 3.5v9M3.5 8h9"/></svg>New chat with…</button>`;
+  pop.querySelectorAll('.crow').forEach((b) => { b.onclick = () => { switchTo(b.dataset.id); pop.hidden = true; }; });
+  pop.querySelector('.chatpop__new').onclick = newPop;
+}
+function newPop() {
+  const pop = $('chatPop');
+  pop.dataset.mode = 'new';
+  pop.innerHTML = `<div class="chatpop__k">NEW CHAT WITH…</div>
+    ${Object.entries(AGENTS).map(([k, a]) => `
+      <button class="crow" data-t="${k}"><img src="${a.img}" alt="">
+        <span><b>${k === 'game' ? 'Game' : a.tag}<span class="ttag ttag--${TCLS[k]}">${a.who}</span></b><em>${a.line}</em></span></button>`).join('')}`;
+  pop.querySelectorAll('.crow').forEach((b) => {
+    b.onclick = () => { pop.hidden = true; if (b.dataset.t === 'game') switchTo('game'); else newChat(b.dataset.t); };
+  });
+}
+$('chatName').onclick = (e) => { e.stopPropagation(); const p = $('chatPop'); if (!p.hidden && p.dataset.mode === 'list') { p.hidden = true; return; } p.hidden = false; listPop(); };
+$('chatPlus').onclick = (e) => { e.stopPropagation(); const p = $('chatPop'); if (!p.hidden && p.dataset.mode === 'new') { p.hidden = true; return; } p.hidden = false; newPop(); };
+document.addEventListener('click', (e) => { if (!e.target.closest('#chatPop')) $('chatPop').hidden = true; });
+
+const put = (c, node) => {
+  c.el.appendChild(node);
+  c.el.classList.toggle('is-full', c.el.scrollHeight > c.el.clientHeight);
+  return node;
+};
+const agentSay = (c, html) => put(c, E('div', 'msg msg--crew',
+  `<span class="av"><img src="${AGENTS[c.type].img}" alt=""></span><span class="txt"><b>${AGENTS[c.type].who}</b><p>${html}</p></span>`));
+const youSay = (c, text) => put(c, E('div', 'msg msg--user', `<span class="bub">${text}</span>${ACTS}`));
+
+function newChat(type) {
+  const n = chats.filter((c) => c.type === type).length + 1;
+  const el = E('div', 'thread side is-on');
+  $('chat').insertBefore(el, $('composer'));
+  const c = { id: `${type}${n}`, type, title: n > 1 ? `${AGENTS[type].tag} ${n}` : { assets: 'Bedroom assets', design: 'Level ideas', biz: 'Launch plan' }[type], el, unread: false, busy: false };
+  chats.push(c);
+  switchTo(c.id);
+  agentSay(c, AGENTS[type].hello);
+  const chips = put(c, E('div', 'chips msg', AGENTS[type].chips.map((t) => `<button>${t}</button>`).join('')));
+  chips.querySelectorAll('button').forEach((b) => { b.onclick = () => { chips.remove(); sendIn(c, b.textContent); }; });
+}
+function switchTo(id) {
+  current = id;
+  chats.forEach((c) => {
+    c.el.classList.toggle('is-off', c.id !== id);
+    if (c.id !== 'game') c.el.classList.toggle('is-on', c.id === id);
+  });
+  chatOf(id).unread = false;
+  $('input').focus();
+  paintHead();
+}
+
+const PART = [['robot', 'robot-pal'], ['dino', 'dino-suit'], ['truck', 'truck'], ['ball', 'basketball'], ['bear', 'teddy'], ['teddy', 'teddy'],
+  ['star', 'stars'], ['block', 'toy-blocks'], ['book', 'book-stacks'], ['pencil', 'pencils'], ['kid', 'backpacker'], ['dresser', 'dresser']];
+function sendIn(c, text) {
+  if (!text.trim()) return;
+  youSay(c, text);
+  if (c.type === 'game') {
+    setTimeout(() => crewSay('planner', 'Got it — I’ll fold that into the next version.'), 900);
+    return;
+  }
+  c.busy = true;
+  c.last = `${AGENTS[c.type].who} is working…`;
+  const th = put(c, E('div', 'think msg', `<i></i>${{ assets: 'Modelling it…', design: 'Thinking it through…', biz: 'Looking at the numbers…' }[c.type]}`));
+  paintHead();
+  setTimeout(() => {
+    th.remove();
+    c.busy = false;
+    if (c.type === 'assets') {
+      const hit = PART.find(([k]) => text.toLowerCase().includes(k));
+      const name = text.replace(/^(a|an|the)\s+/i, '').replace(/^\w/, (m) => m.toUpperCase());
+      agentSay(c, 'Here’s a first pass. It’s sized for the bedroom and ready to drop in.');
+      const card = put(c, E('div', 'acard2 msg', `<img src="assets/boy-part-${hit ? hit[1] : 'toy-blocks'}.jpg" alt="">
+        <div><b>${name}</b><span class="row"><button class="again">Regenerate</button><button class="go">Add to scene</button></span></div>`));
+      card.querySelector('.go').onclick = (e) => {
+        e.target.textContent = 'Added ✓'; e.target.disabled = true;
+        toast(`${name} added to the scene`);
+      };
+      c.last = `Made: ${name}`;
+    } else if (c.type === 'design') {
+      agentSay(c, 'Here’s how I’d do it:');
+      put(c, E('ul', 'bul msg', `<li><b>Where</b> — behind the dresser, a crawl-space into the attic</li>
+        <li><b>Why go</b> — the last two stars are up there, in the dark</li><li><b>Cost</b> — one room, ~120 credits, ~4 min more</li>`));
+      const hand = put(c, E('button', 'hand msg', 'Send to the Game chat →'));
+      hand.onclick = () => {
+        hand.textContent = 'Sent ✓'; hand.disabled = true;
+        userSay(`From Level ideas: ${text}`);
+        setTimeout(() => crewSay('planner', 'On it — I’ve added it to the plan for the next version.'), 900);
+        toast('Sent to the Game chat');
+      };
+      c.last = 'An idea is ready to hand over';
+    } else {
+      agentSay(c, 'My read:');
+      put(c, E('ul', 'bul msg', `<li><b>Audience</b> — 8–12-year-olds, and parents who play with them</li>
+        <li><b>Price</b> — free to play; a $2.99 “more rooms” pack later</li><li><b>Launch</b> — a 20-second clip of the kid climbing the blocks</li>`));
+      c.last = 'Audience, price and launch — ready';
+    }
+    if (current !== c.id) c.unread = true;
+    paintHead();
+  }, 2400);
+}
+function toast(t) {
+  const n = E('div', 'toast', t);
+  scene().appendChild(n);
+  setTimeout(() => n.remove(), 2200);
+}
+const sendNow = () => {
+  const box = $('input');
+  const text = box.textContent;
+  const c = chatOf(current);
+  if (c.type === 'game' && gameBusy()) return;
+  box.textContent = '';
+  sendIn(c, text);
+};
+$('input').addEventListener('input', (e) => { if (!e.target.textContent.trim()) e.target.innerHTML = ''; });
+$('input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendNow(); } });
+$('send').onclick = sendNow;
+// keep the header's busy spinner honest while the crew works
+setInterval(() => { if (!$('chatPop').hidden && $('chatPop').dataset.mode === 'list') listPop(); }, 1000);
 
 // ── director (demo only) ───────────────────────────────────────────
 const BEATS = ['Landing', 'Login', 'Wana', 'Chat', 'Scene', 'Crew + Plan', 'Planner works', 'Plan ready', 'Overview', 'Game assets', 'Build', 'Version 1.0', 'Play'];
