@@ -230,6 +230,7 @@ const ARROW = '<svg class="arr" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></sv
 const seg = (list, on) => `<div class="seg">${list.map((t, i) => `<button class="${i === on ? 'is-on' : ''}">${t}</button>`).join('')}</div>`;
 
 let planStep = 0;
+let v1Ready = false;
 let scope = 1;
 let onApprove = null;
 
@@ -515,6 +516,7 @@ function reset() {
   $('thread').classList.remove('is-full');
   $('crewbar').hidden = true;
   $('scene').innerHTML = '';
+  v1Ready = false;
   if (typeof resetChats === 'function') resetChats();
   setMode('build');
   $('planPill').classList.remove('is-lit');
@@ -612,9 +614,7 @@ function version1(run) {
   sc.querySelectorAll('.tag,.checks,.note').forEach((n) => n.remove());
   if (!sc.querySelector('.thing')) { room(); Scene.art(true); }
   sc.appendChild(E('span', 'vtag', 'Version 1.0'));
-  const big = E('button', 'bigplay', '<span>Play version 1.0</span>');
-  sc.appendChild(big);
-  big.onclick = () => play1();
+  v1Ready = true;
   crewSay('tester', 'Version 1.0 is up and it holds together — five stars to find, one hoop to reach. Give it a go.');
   const card = push(E('div', 'v1card msg', `<img src="assets/boy.jpg" alt="">
     <span><em>Version 1.0</em><b>Tiny Explorer: The Giant Bedroom</b><button>▶ Play</button></span>`));
@@ -626,7 +626,7 @@ function play1() {
   paintDirector(13);
   setMode('play');
   const sc = scene();
-  sc.querySelectorAll('.bigplay,.vtag,.hud,.hint2,.win').forEach((n) => n.remove());
+  sc.querySelectorAll('.vtag,.hud,.hint2,.win').forEach((n) => n.remove());
   if (!sc.querySelector('.thing')) { room(); Scene.art(true); }
   sc.classList.add('is-playing');
   const t0 = performance.now();
@@ -657,16 +657,12 @@ function setMode(m) {
     if (window.Scene) Scene.stop();
     scene().classList.remove('is-playing');
     scene().querySelectorAll('.hud,.hint2,.win').forEach((n) => n.remove());
-    if (scene().querySelector('.thing') && !scene().querySelector('.bigplay')) {
-      const big = E('button', 'bigplay', '<span>Play version 1.0</span>');
-      scene().append(E('span', 'vtag', 'Version 1.0'), big);
-      big.onclick = () => play1();
-    }
+    if (v1Ready && !scene().querySelector('.vtag')) scene().append(E('span', 'vtag', 'Version 1.0'));
   }
 }
 document.querySelectorAll('.modes__b').forEach((b) => {
   b.onclick = () => {
-    const ready = !!scene().querySelector('.bigplay');
+    const ready = v1Ready;
     if (b.dataset.m === 'play' && ready) play1();
     if (b.dataset.m === 'build') { setMode('build'); if (ready) paintDirector(12); }
   };
@@ -858,7 +854,8 @@ setInterval(() => { if (!$('chatPop').hidden && $('chatPop').dataset.mode === 'l
 const BEATS = ['Landing', 'Login', 'Wana', 'Chat', 'Scene', 'Crew + Plan', 'Planner works', 'Plan ready', 'Overview', 'Game assets', 'Build', 'Version 1.0', 'Play'];
 function paintDirector(n) {
   const d = $('director');
-  if (Q.has('clean')) { d.classList.add('is-hidden'); return; }
+  d.classList.add('is-hidden');
+  return;
   d.innerHTML = BEATS.map((b, i) => `<button class="${i + 1 === n ? 'is-on' : ''}" data-n="${i + 1}">${i + 1} ${b}</button>`).join('')
     + '<button data-n="1">↺ Replay</button>';
   d.querySelectorAll('button').forEach((b) => { b.onclick = () => play(+b.dataset.n); });
